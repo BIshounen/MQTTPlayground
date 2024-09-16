@@ -1,5 +1,5 @@
 /.venv/
 /.idea/
-creds
+creds.py
 cert.crt
 isrgrootx1.pem

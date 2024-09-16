@@ -1,11 +1,12 @@
 import paho.mqtt.client as paho
 from paho import mqtt
 from flask import Flask, request
-import json
 import requests
+import config
+import creds
 
 
-credentials_file = "creds"
+credentials_file = "creds.py"
 MQTT_url = "079ac9dc74e24ba6b8f8f5f3bcd9dd10.s1.eu.hivemq.cloud"
 MQTT_port = 8883
 cert = "isrgrootx1.pem"
@@ -36,14 +37,12 @@ def on_log(_client, _userdata, _level, _buf):
 
 
 def connect_to_hivemq():
-    with open(credentials_file, "r") as f:
 
-        _credentials = json.load(f)
-        client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS, ca_certs=cert)
-        client.username_pw_set(_credentials['username'], _credentials['password'])
-        client.on_log = on_log
-        client.on_connect = on_connect
-        client.connect(host=MQTT_url, port=MQTT_port, keepalive=60, clean_start=True)
+    client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS, ca_certs=cert)
+    client.username_pw_set(creds.creds['username'], creds.creds['password'])
+    client.on_log = on_log
+    client.on_connect = on_connect
+    client.connect(host=MQTT_url, port=MQTT_port, keepalive=60, clean_start=True)
 
 
 def on_connect(_client, _userdata, _connect_flags, _reason_code, _properties):
@@ -54,8 +53,19 @@ def on_connect(_client, _userdata, _connect_flags, _reason_code, _properties):
 
 
 def on_message(_client, _user_data, _msg):
-    body = {"state": "instant", "caption": "MQTT Message", "description": str(_msg)}
-    result = requests.post('https://127.0.0.1:7001/rest/v4/events/create', json=body, verify=False)
+    body = creds.creds
+    result = requests.post(config.NX_LOGIN_URL, data=body, verify=False)
+    if result.status_code == 200:
+        token = result.json()["token"]
+    else:
+        print(result.status_code)
+        return
+
+    body = {"state": "instant", "caption": "MQTT Message", "description": _msg.payload.decode('utf-8')}
+    result = requests.post(config.NX_GENERIC_EVENT_URL,
+                           json=body,
+                           verify=False,
+                           headers={'Authorization': 'Bearer {}'.format(token)})
     print(result.text)
     print(result.status_code)
 
@@ -66,6 +76,6 @@ if __name__ == '__main__':
     while not connected_to_hive:
         continue
     client.on_message = on_message
-    client.subscribe("#", qos=1)
+    client.subscribe("test", qos=1)
     app.run(debug=False)
     client.loop_stop()

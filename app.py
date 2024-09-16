@@ -55,7 +55,7 @@ def on_connect(_client, _userdata, _connect_flags, _reason_code, _properties):
 
 def on_message(_client, _user_data, _msg):
     body = {"state": "instant", "caption": "MQTT Message", "description": str(_msg)}
-    requests.post('https://127.0.0.1:7001/rest/v4/events/create', json=body)
+    requests.post('https://127.0.0.1:7001/rest/v4/events/create', json=body, verify=False)
 
 
 if __name__ == '__main__':
